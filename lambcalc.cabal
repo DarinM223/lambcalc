@@ -25,6 +25,8 @@ library
                     , Lambcalc.Closure
                     , Lambcalc.Hoist
                     , Lambcalc.Lam
+                    , Lambcalc.Llvm
+                    , Lambcalc.Lower
                     , Lambcalc.Shared
 
     -- Modules included in this library but not exported.

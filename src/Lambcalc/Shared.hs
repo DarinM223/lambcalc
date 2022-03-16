@@ -4,6 +4,9 @@ import Control.Monad.Trans.State.Strict (State, get, modify')
 
 type Var = String
 
+class Pretty p where
+  pretty :: p -> String
+
 data Bop
 
 fresh :: String -> State Int String
