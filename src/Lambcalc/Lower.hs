@@ -33,7 +33,7 @@ lowerValue = undefined
 lowerBop :: Anf.Bop -> Bop
 lowerBop = undefined
 
-lowerBlock :: HM.HashMap String String -> Join -> State Int (Uid, Block)
+lowerBlock :: HM.HashMap String String -> Join -> State Int (Lbl, Block)
 lowerBlock spills (j0, p0, e0) = state $ \c ->
   let (instrs, LowerState last' c') =
         flip runState (LowerState (Br "undefined") c) $ case p0 of
