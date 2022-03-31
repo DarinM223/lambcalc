@@ -1,14 +1,16 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Lambcalc.Llvm where
 
 import Data.Char (toLower)
 import Data.List (intersperse)
+import Data.String (IsString)
 import Lambcalc.Shared (Pretty (pretty))
-import Text.Printf
+import Text.Printf (PrintfArg (formatArg), formatString, printf)
 
-type Uid = String
-type Gid = String
-type Tid = String
+newtype Uid = Uid String deriving (IsString, Pretty, PrintfArg)
+newtype Gid = MkGid String deriving (IsString, Pretty, PrintfArg)
+newtype Tid = MkTid String deriving (IsString, Pretty, PrintfArg)
 type Lbl = String
 
 data Ty
@@ -33,9 +35,8 @@ instance Pretty Ty where
   pretty (Ptr ty) = pretty ty ++ "*"
   pretty (Struct ts) = printf "{ %s }" (mconcat (pretty <$> ts))
   pretty (Array n t) = printf "[%d x %s]" n t
-  pretty (Fun (ts, t)) =
-    printf "%s (%s)" t (mconcat (intersperse ", " (pretty <$> ts)))
-  pretty (Namedt s) = "%%" ++ s
+  pretty (Fun (ts, t)) = printf "%s (%s)" t (mapcat ", " pretty ts)
+  pretty (Namedt s) = "%%" ++ pretty s
 
 type Fty = ([Ty], Ty)
 
@@ -51,8 +52,8 @@ instance PrintfArg Operand where
 instance Pretty Operand where
   pretty Null = "null"
   pretty (Const i) = show i
-  pretty (Gid g) = "@" ++ g
-  pretty (Id u) = "%" ++ u
+  pretty (Gid g) = "@" ++ pretty g
+  pretty (Id u) = "%" ++ pretty u
 
 instance Pretty (Ty, Operand) where
   pretty (t, o) = printf "%s %s" t o
@@ -97,11 +98,10 @@ instance Pretty Insn where
   pretty (Load _ _) = error "Load: expected pointer type"
   pretty (Store t src des) = printf "store %s %s, %s %s" t src (Ptr t) des
   pretty (Icmp c t x y) = printf "icmp %s %s %s, %s" c t x y
-  pretty (Call t f args) = printf "call %s %s(%s)" t f prettyArgs
-   where prettyArgs = mconcat $ intersperse ", " $ fmap pretty args
+  pretty (Call t f args) = printf "call %s %s(%s)" t f (mapcat ", " pretty args)
   pretty (Bitcast t1 o t2) = printf "bitcast %s %s to %s" t1 o t2
   pretty (Gep pt@(Ptr t) o is) = printf "getelementptr %s, %s, %s" pt t o pis
-   where pis = mconcat $ intersperse ", " $ fmap prettyGepIndex is
+   where pis = mapcat ", " prettyGepIndex is
   pretty Gep{} = error "Gep: expected pointer type"
   pretty (PtrToInt t1 o t2) = printf "ptrtoint %s %s to %s" t1 o t2
   pretty (IntToPtr t1 o t2) = printf "inttoptr %s %s to %s" t1 o t2
@@ -133,11 +133,9 @@ data Block = Block
   }
 
 instance Pretty Block where
-  pretty (Block is (_, term)) = pis ++ newline ++ pad ++ pretty term
-   where
-    pad = "  "
-    pis = mconcat $ intersperse "\n" $ fmap ((pad ++) . pretty) is
-    newline = if null is then "" else "\n"
+  pretty (Block is (_, term)) =
+    (mapcat "\n" ((pad ++) . pretty) is ++. "\n") ++ pad ++ pretty term
+   where pad = "  "
 
 instance Pretty (Lbl, Block) where
   pretty (l, b) = l ++ ":\n" ++ pretty b
@@ -145,8 +143,7 @@ instance Pretty (Lbl, Block) where
 type Cfg = (Block, [(Lbl, Block)])
 
 instance Pretty Cfg where
-  pretty (e, bs) =
-    pretty e ++ "\n" ++ mconcat (intersperse "\n" (pretty <$> bs))
+  pretty (e, bs) = pretty e ++ "\n" ++ mapcat "\n" pretty bs
 
 data Fdecl = Fdecl
   { fdeclFty   :: Fty
@@ -159,4 +156,55 @@ instance Pretty (Gid, Fdecl) where
     printf "define %s @%s(%s) {\n%s\n}\n" t g pargs (pretty cfg)
    where
     prettyArg (t', u) = printf "%s %%%s" t' u
-    pargs = mconcat $ intersperse ", " $ prettyArg <$> zip ts param
+    pargs = mapcat ", " prettyArg $ zip ts param
+
+data Ginit
+  = GNull
+  | GGid Gid
+  | GInt Int
+  | GString String
+  | GArray [Gdecl]
+  | GStruct [Gdecl]
+
+instance Pretty Ginit where
+  pretty GNull = "null"
+  pretty (GGid g) = "@" ++ pretty g
+  pretty (GInt i) = show i
+  pretty (GString s) = printf "c\"%s\\00\"" s
+  pretty (GArray gis) = printf "[ %s ]" (mapcat ", " pretty gis)
+  pretty (GStruct gis) = printf "{ %s }" (mapcat ", " pretty gis)
+
+type Gdecl = (Ty, Ginit)
+
+instance Pretty Gdecl where
+  pretty (t, gi) = printf "%s %s" t (pretty gi)
+
+instance Pretty (Gid, Gdecl) where
+  pretty (g, gd) = printf "@%s = global %s" g (pretty gd)
+
+instance Pretty (Tid, Ty) where
+  pretty (n, t) = printf "%%%s = type %s" n t
+
+instance Pretty (Gid, Ty) where
+  pretty (g, Fun (ts, rt)) = printf "declare %s @%s(%s)" rt g (mapcat ", " pretty ts)
+  pretty (g, t) = printf "@%s = external global %s" g t
+
+data Prog = Prog
+  { progTdecls :: [(Tid, Ty)]    -- named types
+  , progGdecls :: [(Gid, Gdecl)] -- global data
+  , progFdecls :: [(Gid, Fdecl)] -- code
+  , progEdecls :: [(Gid, Ty)]    -- external declarations
+  }
+
+instance Pretty Prog where
+  pretty (Prog tdecls gdecls fdecls edecls)
+    =  (mapcat "\n" pretty tdecls ++. "\n\n")
+    ++ (mapcat "\n" pretty gdecls ++. "\n\n")
+    ++ (mapcat "\n" pretty fdecls ++. "\n\n")
+    ++  mapcat "\n" pretty edecls
+
+mapcat :: Monoid c => c -> (a -> c) -> [a] -> c
+mapcat c f = mconcat . intersperse c . fmap f
+
+(++.) :: [a] -> [a] -> [a]
+(++.) a b = if null a then a else a ++ b
