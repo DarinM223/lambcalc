@@ -31,10 +31,10 @@ instance Pretty Ty where
   pretty I8 = "i8"
   pretty I64 = "i64"
   pretty (Ptr ty) = pretty ty ++ "*"
-  pretty (Struct ts) = "{ " ++ mconcat (pretty <$> ts) ++ " }"
-  pretty (Array n t) = "[" ++ show n ++ " x " ++ pretty t ++ "]"
+  pretty (Struct ts) = printf "{ %s }" (mconcat (pretty <$> ts))
+  pretty (Array n t) = printf "[%d x %s]" n t
   pretty (Fun (ts, t)) =
-    pretty t ++ " (" ++ mconcat (intersperse ", " (pretty <$> ts)) ++ ")"
+    printf "%s (%s)" t (mconcat (intersperse ", " (pretty <$> ts)))
   pretty (Namedt s) = "%%" ++ s
 
 type Fty = ([Ty], Ty)
@@ -110,6 +110,12 @@ prettyGepIndex :: Operand -> String
 prettyGepIndex (Const i) = "i32 " ++ show i
 prettyGepIndex o         = "i64 " ++ pretty o
 
+instance Pretty (Uid, Insn) where
+  pretty (u, i) = case i of
+    Store{}       -> pretty i
+    Call Void _ _ -> pretty i
+    _             -> printf "%%%s = %s" u i
+
 data Terminator
   = Ret Ty (Maybe Operand)
   | Br Lbl
@@ -125,3 +131,32 @@ data Block = Block
   { insns      :: [(Uid, Insn)]
   , terminator :: (Uid, Terminator)
   }
+
+instance Pretty Block where
+  pretty (Block is (_, term)) = pis ++ newline ++ pad ++ pretty term
+   where
+    pad = "  "
+    pis = mconcat $ intersperse "\n" $ fmap ((pad ++) . pretty) is
+    newline = if null is then "" else "\n"
+
+instance Pretty (Lbl, Block) where
+  pretty (l, b) = l ++ ":\n" ++ pretty b
+
+type Cfg = (Block, [(Lbl, Block)])
+
+instance Pretty Cfg where
+  pretty (e, bs) =
+    pretty e ++ "\n" ++ mconcat (intersperse "\n" (pretty <$> bs))
+
+data Fdecl = Fdecl
+  { fdeclFty   :: Fty
+  , fdeclParam :: [Uid]
+  , fdeclCfg   :: Cfg
+  }
+
+instance Pretty (Gid, Fdecl) where
+  pretty (g, Fdecl (ts, t) param cfg) =
+    printf "define %s @%s(%s) {\n%s\n}\n" t g pargs (pretty cfg)
+   where
+    prettyArg (t', u) = printf "%s %%%s" t' u
+    pargs = mconcat $ intersperse ", " $ prettyArg <$> zip ts param
