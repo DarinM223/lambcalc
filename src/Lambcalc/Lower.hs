@@ -8,7 +8,7 @@ import Control.Monad.Trans.State.Strict (State, runState, state)
 import Data.Foldable (foldlM)
 import Data.Functor (($>))
 import GHC.Generics (Generic)
-import Lambcalc.Hoist (Join)
+import Lambcalc.Hoist (Join, Func)
 import Lambcalc.Llvm
 import Lambcalc.Shared (fresh)
 import Optics (Zoom (zoom))
@@ -22,6 +22,16 @@ data LowerState = LowerState
   , counter :: {-# UNPACK #-} !Int
   } deriving Generic
 
+fty :: Fty
+fty = ([I64, I64], I64)
+
+lowerFunc :: Func -> State Int (Gid, Fdecl)
+lowerFunc (f, xs, entry, joins) = do
+  spills <- preprocess joins
+  (_, entryBlock) <- lowerBlock spills entry
+  labeledBlocks <- traverse (lowerBlock spills) joins
+  return (MkGid f, Fdecl fty (Uid <$> xs) (entryBlock, labeledBlocks))
+
 preprocess :: [Join] -> State Int (HM.HashMap String Uid)
 preprocess = foldlM go HM.empty
  where
@@ -29,21 +39,23 @@ preprocess = foldlM go HM.empty
   go spills _ = pure spills
 
 lowerValue :: Anf.Value -> Operand
-lowerValue = undefined
+lowerValue v = case v of
+  Anf.Int n  -> Const n
+  Anf.Var s  -> Id $ Uid s
+  Anf.Glob s -> Gid $ MkGid s
 
-lowerBop :: Anf.Bop -> Bop
-lowerBop = undefined
+lowerBop :: Anf.Bop -> Anf.Bop
+lowerBop = id
 
 lowerBlock :: HM.HashMap String Uid -> Join -> State Int (Lbl, Block)
 lowerBlock spills (j0, p0, e0) = state $ \c ->
   let (instrs, LowerState last' c') =
         flip runState (LowerState (Br "undefined") c) $ case p0 of
           Just p -> let slot = spills HM.! j0
-                    in ((Uid p, Load I64 (Id slot)) :) <$> go e0
+                    in ((Uid p, Load (Ptr I64) (Id slot)) :) <$> go e0
           Nothing -> go e0
   in ((j0, Block instrs ("", last')), c')
  where
-  fty = ([I64, I64], I64)
   fresh' = fmap Uid . zoom #counter . fresh
 
   go :: Anf.Exp -> State LowerState [(Uid, Insn)]
@@ -91,7 +103,7 @@ lowerBlock spills (j0, p0, e0) = state $ \c ->
     (addr, tuple) <- (,) <$> fresh' "a" <*> fresh' "t"
     let is = [ (tuple, IntToPtr I64 (Id (Uid x)) (Ptr I64))
              , (addr, Gep (Ptr I64) (Id tuple) [Const i])
-             , (Uid r, Load I64 (Id addr))
+             , (Uid r, Load (Ptr I64) (Id addr))
              ]
     (is ++) <$> go e
   go Anf.Fun{}  = error "Code must be straightline"

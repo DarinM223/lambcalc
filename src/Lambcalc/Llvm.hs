@@ -5,7 +5,7 @@ module Lambcalc.Llvm where
 import Data.Char (toLower)
 import Data.List (intersperse)
 import Data.String (IsString)
-import Lambcalc.Shared (Pretty (pretty))
+import Lambcalc.Shared (Bop, Pretty (pretty))
 import Text.Printf (PrintfArg (formatArg), formatString, printf)
 
 newtype Uid = Uid String deriving (IsString, Pretty, PrintfArg)
@@ -58,15 +58,6 @@ instance Pretty Operand where
 instance Pretty (Ty, Operand) where
   pretty (t, o) = printf "%s %s" t o
 
-data Bop = Add | Sub | Mul | Shl | Lshr | Ashr | And | Or | Xor
-  deriving Show
-
-instance PrintfArg Bop where
-  formatArg = formatString . pretty
-
-instance Pretty Bop where
-  pretty bop = case show bop of { (c:cs) -> toLower c:cs; s -> s }
-
 data Cnd = Eq | Ne | Slt | Sle | Sgt | Sge
   deriving Show
 
@@ -100,7 +91,7 @@ instance Pretty Insn where
   pretty (Icmp c t x y) = printf "icmp %s %s %s, %s" c t x y
   pretty (Call t f args) = printf "call %s %s(%s)" t f (mapcat ", " pretty args)
   pretty (Bitcast t1 o t2) = printf "bitcast %s %s to %s" t1 o t2
-  pretty (Gep pt@(Ptr t) o is) = printf "getelementptr %s, %s, %s" pt t o pis
+  pretty (Gep pt@(Ptr t) o is) = printf "getelementptr %s, %s %s, %s" t pt o pis
    where pis = mapcat ", " prettyGepIndex is
   pretty Gep{} = error "Gep: expected pointer type"
   pretty (PtrToInt t1 o t2) = printf "ptrtoint %s %s to %s" t1 o t2

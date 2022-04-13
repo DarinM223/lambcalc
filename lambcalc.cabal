@@ -27,6 +27,7 @@ library
                     , Lambcalc.Lam
                     , Lambcalc.Llvm
                     , Lambcalc.Lower
+                    , Lambcalc.Parser
                     , Lambcalc.Shared
 
     -- Modules included in this library but not exported.
@@ -45,7 +46,9 @@ library
                  -fshow-hole-constraints
                  -haddock
     build-depends:    base ^>=4.15.0.0
+                    , megaparsec
                     , optics
+                    , parser-combinators
                     , transformers
                     , unordered-containers
     hs-source-dirs:   src

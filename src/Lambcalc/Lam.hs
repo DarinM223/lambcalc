@@ -9,3 +9,4 @@ data Exp
   | App Exp Exp
   | Bop Bop Exp Exp
   | If Exp Exp Exp
+  deriving Show
