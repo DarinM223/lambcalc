@@ -1,8 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Lambcalc (compile, parse) where
 
 import Control.Monad.Trans.State.Strict (evalState)
 import Lambcalc.Lam (Exp)
-import Lambcalc.Llvm (Prog (Prog))
+import Lambcalc.Llvm (Prog (Prog), Ty (Fun, I64, Ptr))
 import Lambcalc.Parser (parseLam)
 import Lambcalc.Shared (Pretty (pretty))
 import qualified Lambcalc.Alpha as Alpha
@@ -18,7 +19,7 @@ compile e = flip evalState (-1) $ do
   anf' <- Closure.convert anf
   fns <- Hoist.hoist anf'
   loweredFns <- traverse Lower.lowerFunc fns
-  let prog = Prog [] [] loweredFns []
+  let prog = Prog [] [] loweredFns [("malloc", Fun ([I64], Ptr I64))]
   return $ pretty prog
 
 parse :: String -> Exp

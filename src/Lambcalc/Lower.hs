@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 module Lambcalc.Lower where
 
 import Control.Monad.Trans.State.Strict (State, runState, state)
@@ -28,9 +29,11 @@ fty = ([I64, I64], I64)
 lowerFunc :: Func -> State Int (Gid, Fdecl)
 lowerFunc (f, xs, entry, joins) = do
   spills <- preprocess joins
+  let allocas = (, Alloca I64) <$> HM.elems spills
   (_, entryBlock) <- lowerBlock spills entry
+  let entryBlock' = entryBlock { insns = allocas ++ insns entryBlock }
   labeledBlocks <- traverse (lowerBlock spills) joins
-  return (MkGid f, Fdecl fty (Uid <$> xs) (entryBlock, labeledBlocks))
+  return (MkGid f, Fdecl fty (Uid <$> xs) (entryBlock', labeledBlocks))
 
 preprocess :: [Join] -> State Int (HM.HashMap String Uid)
 preprocess = foldlM go HM.empty
