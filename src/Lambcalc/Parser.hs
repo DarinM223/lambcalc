@@ -11,7 +11,7 @@ import qualified Text.Megaparsec.Char.Lexer as L
 type Parser = Parsec Void String
 
 sc :: Parser ()
-sc = L.space space1  (L.skipLineComment "--") empty
+sc = L.space space1 (L.skipLineComment "--") empty
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
@@ -53,7 +53,7 @@ term = try $ lexeme $ choice
 
 operatorTable :: [[Operator Parser Exp]]
 operatorTable =
-  [ [ binary "" App]
+  [ [ binary "" App ]
   , [ binary "*" (Bop Mul) ]
   , [ binary "+" (Bop Add)
     , binary "-" (Bop Sub)

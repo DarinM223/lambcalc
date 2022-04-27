@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
 module Lambcalc.Shared where
 
 import Data.Char (toLower)

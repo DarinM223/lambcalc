@@ -45,14 +45,14 @@ library
                  -Wunused-record-wildcards
                  -fshow-hole-constraints
                  -haddock
-    build-depends:    base ^>=4.15.0.0
+    build-depends:    base ^>=4.16.0.0
                     , megaparsec
                     , optics
                     , parser-combinators
                     , transformers
                     , unordered-containers
     hs-source-dirs:   src
-    default-language: Haskell2010
+    default-language: GHC2021
 
 executable lambcalc
     main-is:          Main.hs
@@ -63,15 +63,14 @@ executable lambcalc
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:
-        base ^>=4.15.0.0,
+        base ^>=4.16.0.0,
         lambcalc
-
     hs-source-dirs:   src-exe
-    default-language: Haskell2010
+    default-language: GHC2021
 
 test-suite lambcalc-test
-    default-language: Haskell2010
+    default-language: GHC2021
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          MyLibTest.hs
-    build-depends:    base ^>=4.15.0.0
+    build-depends:    base ^>=4.16.0.0

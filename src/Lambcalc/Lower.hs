@@ -1,8 +1,5 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
 module Lambcalc.Lower where
 
 import Control.Monad.Trans.State.Strict (State, runState, state)
