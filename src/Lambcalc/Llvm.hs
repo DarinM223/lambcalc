@@ -31,7 +31,7 @@ instance Pretty Ty where
   pretty I8 = "i8"
   pretty I64 = "i64"
   pretty (Ptr ty) = pretty ty ++ "*"
-  pretty (Struct ts) = printf "{ %s }" (mconcat (pretty <$> ts))
+  pretty (Struct ts) = printf "{ %s }" (mapcat ", " pretty ts)
   pretty (Array n t) = printf "[%d x %s]" n t
   pretty (Fun (ts, t)) = printf "%s (%s)" t (mapcat ", " pretty ts)
   pretty (Namedt s) = "%%" ++ pretty s

@@ -72,5 +72,9 @@ test-suite lambcalc-test
     default-language: GHC2021
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
-    main-is:          MyLibTest.hs
+    main-is:          LambcalcTest.hs
+    other-modules:    LlvmPrettyTest
     build-depends:    base ^>=4.16.0.0
+                    , lambcalc
+                    , tasty
+                    , tasty-hunit
